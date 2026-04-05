@@ -33,7 +33,6 @@
     .\Renew-LetsEncryptCert.ps1 -CFemail foo@mail.com -hostname example.com -pargs
 #>
 
-
 Param (
     # you need to supply a email later the first time you create a certificate for a domain, i just always do it with a variable
     $CFemail,
@@ -58,4 +57,11 @@ function Install-ModuleIfMissing {
 Install-ModuleIfMissing -ModuleName 'Posh-ACME'
 
 #this string will create the certificate and install it automatically into the Windows certificates store
-New-PACertificate $hostname -Plugin Cloudflare -PluginArgs $pArgs -Install -AcceptTOS -Contact $CFemail -Force
+$CertRenewStat = New-PACertificate $hostname -Plugin Cloudflare -PluginArgs $pArgs -Install -AcceptTOS -Contact $CFemail -Force
+
+If ($CertRenewStat) {
+    Write-Host "Certificate renewed and installed successfully. Calling rotate script."
+    .\Rotate-IISSSLCert.ps1 -OldThumbprint $CertRenewStat.OldCertificate.Thumbprint -NewThumbprint $CertRenewStat.Certificate.Thumbprint
+} else {
+    Write-Host "Certificate renewal failed. Error: $($CertRenewStat.ErrorMessage)"
+}
